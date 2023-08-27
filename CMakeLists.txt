@@ -1,12 +1,25 @@
 cmake_minimum_required(VERSION 3.21)
-project(stb VERSION 0.1.0)
+project(stb VERSION 0.0.0)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)         # Generate compile_commands.json for ccls
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)  # Group CMake targets inside a folder
 
-add_library(stb STATIC
-    "stb_image_write.h"
-    "stb_image.h"
+# Install directory setup
+include(GNUInstallDirs)
+set(STB_INC_DIR ${CMAKE_INSTALL_INCLUDEDIR})
+
+set(HEADER_FILES
+    "${PROJECT_SOURCE_DIR}/stb_image_write.h"
+    "${PROJECT_SOURCE_DIR}/stb_image.h"
+)
+set(SOURCE_FILES
     "stb_image.cpp"
 )
-target_include_directories(stb PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+add_library(stb STATIC ${HEADER_FILES} ${SOURCE_FILES})
+target_include_directories(stb
+    PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>
+    $<INSTALL_INTERFACE:${STB_INC_DIR}>
+)
 target_compile_features(stb PRIVATE cxx_std_20)
 add_library(stb::stb ALIAS stb)
 
@@ -17,6 +30,7 @@ set(version_config "${PROJECT_BINARY_DIR}/stb-config-version.cmake")
 set(project_config "${PROJECT_BINARY_DIR}/stb-config.cmake")
 set(pkgconfig ${PROJECT_BINARY_DIR}/stb.pc)
 set(targets_export_name stb-targets)
+set(STB_LIB_NAME stb)
 
 write_basic_package_version_file(
     ${version_config}
@@ -40,7 +54,7 @@ configure_file(
 
 # CMake package config
 configure_package_config_file(
-    ${CMAKE_CURRENT_SOURCE_DIR}/support/cmake/stb-config.cmake.in
+    ${CMAKE_CURRENT_SOURCE_DIR}/support/cmake/stb.cmake.in
     ${project_config}
     INSTALL_DESTINATION ${STB_CMAKE_DIR}
 )
@@ -55,9 +69,10 @@ install(TARGETS ${INSTALL_TARGETS} EXPORT ${targets_export_name}
         PUBLIC_HEADER DESTINATION "${STB_INC_DIR}"
         RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
+install(FILES ${HEADER_FILES} DESTINATION "${STB_INC_DIR}")
 
 export(TARGETS ${INSTALL_TARGETS} NAMESPACE stb::
-     FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
+       FILE ${PROJECT_BINARY_DIR}/${targets_export_name}.cmake)
 
 # Install version, config and target files.
 install(
@@ -65,6 +80,7 @@ install(
     DESTINATION ${STB_CMAKE_DIR}
 )
 install(EXPORT ${targets_export_name} DESTINATION ${STB_CMAKE_DIR}
-      NAMESPACE stb::)
+        NAMESPACE stb::)
 
+# TODO: pkg-config doesn't work as expected on Windows
 install(FILES "${pkgconfig}" DESTINATION "${STB_PKGCONFIG_DIR}")
